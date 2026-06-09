@@ -5,7 +5,7 @@ on:
     - cron: '*/5 * * * *'
   workflow_dispatch:
 
-permissions: # Yeh line script ke andar se bhi write access enable karegi
+permissions:
   contents: write
 
 jobs:
@@ -13,15 +13,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4 # Up-to-date node check
+        uses: actions/checkout@v4
 
       - name: Fetch Latest Files from AI Studio
         env:
           GEMINI_API_KEY: ${{ secrets.API_KEY }}
         run: |
+          # API endpoint aur structure ko v1beta ke mutabik correct kiya gaya hai
           curl -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}" \
           -H "Content-Type: application/json" \
-          -d '{"contents": [{"parts":[{"text": "Export my latest project code as plain structured files"}]}]}' > project_data.json
+          -d '{"contents": [{"parts":[{"text": "Return a valid JSON object containing the latest structured backup of my development files and project code base."}]}]}' > project_data.json
 
       - name: Automatically Commit and Deploy
         run: |
