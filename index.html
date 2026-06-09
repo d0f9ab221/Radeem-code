@@ -1,0 +1,568 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>Radeem App</title>
+    <!-- Tailwind and Custom Style -->
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body class="bg-gray-50 flex flex-col min-h-screen">
+
+    <!-- Global Floating Toast Notification System -->
+    <div id="globalToast" class="fixed top-5 left-1/2 -translate-x-1/2 z-50 pointer-events-none transform translate-y-[-100px] opacity-0 transition-all duration-300 flex items-center gap-2 bg-slate-900 text-white rounded-full px-5 py-2.5 shadow-xl border border-slate-800 text-xs font-semibold">
+      <span id="toastIcon">●</span>
+      <span id="toastMessage">Notification Message</span>
+    </div>
+
+    <!-- Unauthorized Domain Custom Modal Helper -->
+    <div id="unauthorizedDomainModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm hidden opacity-0 transition-opacity duration-300">
+      <div class="bg-white rounded-2xl p-6 max-w-sm w-full border border-slate-100 shadow-2xl space-y-4">
+        <div class="flex items-center gap-3">
+          <div class="h-10 w-10 bg-rose-50 text-rose-600 rounded-full flex items-center justify-center text-lg">
+            ⚠️
+          </div>
+          <div>
+            <h3 class="font-display font-black text-slate-800 text-sm">Firebase Whitelist Required</h3>
+            <p class="text-[9px] text-rose-500 font-extrabold tracking-wide uppercase mt-0.5">Google Authentication Error</p>
+          </div>
+        </div>
+        
+        <p class="text-xs text-slate-500 leading-relaxed">
+          Google Sign-In is temporarily blocked because this staging server's hostname is not registered under authorized domains.
+        </p>
+        
+        <div class="bg-slate-50 rounded-xl p-3 border border-slate-100 space-y-2 text-xs">
+          <p class="font-bold text-slate-700">1. Copy this domain name:</p>
+          <div class="flex items-center justify-between gap-2 bg-white rounded-lg px-2.5 py-1.5 border border-slate-200">
+            <code id="modalCurrentDomain" class="text-indigo-600 font-mono font-bold text-[10px] select-all">domain.com</code>
+            <button onclick="copyCurrentDomain()" class="btn-tap-feedback bg-indigo-50 text-indigo-600 hover:bg-indigo-100 text-[10px] px-2 py-0.5 rounded-md font-bold">
+              Copy
+            </button>
+          </div>
+          
+          <p class="font-bold text-slate-700 pt-1">2. Add to Firebase Authorized Domains:</p>
+          <p class="text-slate-500 text-[11px] leading-relaxed">
+            Open <a href="https://console.firebase.google.com" target="_blank" class="text-indigo-600 underline font-semibold">Firebase Console</a>, navigate to <strong>Authentication ➜ Settings ➜ Authorized Domains</strong>, and paste the copied domain.
+          </p>
+        </div>
+
+        <div class="bg-indigo-50 border border-indigo-100/55 rounded-xl p-3 text-[11px] flex gap-2">
+          <span>💡</span>
+          <div class="space-y-1.5 flex-1">
+            <p class="text-indigo-800 leading-relaxed">
+              <strong>Instant Workaround:</strong> Instantly launch an interactive test profile using our automated sandbox helper — no whitelisting or typing required!
+            </p>
+            <button id="modalDemoBtn" onclick="closeDomainModal(); triggerQuickDemoLogin()" class="btn-tap-feedback bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[10.5px] rounded-lg px-3 py-1.5 transition-all shadow-md">
+              Launch Instant Demo Player
+            </button>
+          </div>
+        </div>
+
+        <div class="flex gap-2.5 pt-1">
+          <button onclick="closeDomainModal()" class="w-full text-center text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl py-2.5 transition-all">
+            Understood, Close
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- GLOBAL MAIN-CONTAINER WITH STICKY HUD (Invisible when logged out) -->
+    <div id="appShell" class="hidden flex-col flex-1 pb-24">
+      <!-- Fixed Header Balance HUD -->
+      <header class="sticky top-0 z-30 glass-panel premium-shadow border-b border-slate-100 px-4 py-3.5 flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+          <div class="h-9 w-9 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-black text-sm tracking-tight shadow-md shadow-indigo-200">
+            RA
+          </div>
+          <div>
+            <h1 class="text-xs font-semibold text-slate-400 leading-none">RADEEM APP</h1>
+            <p id="hudUsername" class="text-xs font-bold text-slate-800 mt-0.5">Loading...</p>
+          </div>
+        </div>
+
+        <!-- Balance display -->
+        <div class="flex items-center gap-2">
+          <!-- Coins Badge -->
+          <div class="flex items-center gap-1.5 bg-amber-50 border border-amber-100 rounded-full pl-1.5 pr-3 py-1 font-semibold text-amber-700 text-xs shadow-sm shadow-amber-50">
+            <span class="flex h-5 w-5 items-center justify-center rounded-full bg-amber-400 text-amber-950 font-black text-[10px] shadow-sm">
+              🪙
+            </span>
+            <span id="hudCoins" class="font-mono font-bold">0</span>
+          </div>
+
+          <!-- Diamonds Badge -->
+          <div class="flex items-center gap-1.5 bg-sky-50 border border-sky-100 rounded-full pl-1.5 pr-3 py-1 font-semibold text-sky-700 text-xs shadow-sm shadow-sky-50">
+            <span class="flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-tr from-sky-400 to-indigo-400 text-white text-[10px] shadow-sm">
+              💎
+            </span>
+            <span id="hudDiamonds" class="font-mono font-bold">0</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- VIEW PANELS HOLDER (Content space) -->
+      <div class="w-full max-w-lg mx-auto p-4 md:py-6 space-y-6">
+        
+        <!-- DASHBOARD PAGE VIEW -->
+        <div id="dashboardPage" class="view-panel active-view">
+          <!-- Main Welcome Card -->
+          <div class="relative overflow-hidden rounded-2xl bg-gradient-to-r from-indigo-600 via-indigo-700 to-indigo-800 p-6 text-white shadow-xl shadow-indigo-100">
+            <!-- Shimer ray asset decoration -->
+            <div class="absolute inset-x-0 top-0 h-full w-40 bg-gradient-to-r from-transparent via-white/10 to-transparent skew-x-12 animate-shimmer"></div>
+            
+            <div class="relative z-10">
+              <span class="inline-flex items-center gap-1 bg-white/15 backdrop-blur-md rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-indigo-100">
+                ⭐ Welcome Player
+              </span>
+              <h2 class="text-xl font-black mt-2">Unlock Rewards Instantly!</h2>
+              <p class="text-xs text-indigo-100/80 mt-1 max-w-sm">Watch ads to gather diamonds, unlock the glowing mystery chest, and swap premium points directly for vouchers.</p>
+
+              <!-- Stats Summary Cards Inside -->
+              <div class="grid grid-cols-2 gap-3 mt-5">
+                <div class="bg-white/10 backdrop-blur-md rounded-xl p-3 border border-white/10">
+                  <p class="text-[9px] text-indigo-200 uppercase font-bold tracking-widest">Rate Ratio</p>
+                  <p class="text-sm font-bold mt-0.5 font-mono">900 Coins = RS 10</p>
+                </div>
+                <div class="bg-white/10 backdrop-blur-md rounded-xl p-3 border border-white/10">
+                  <p class="text-[9px] text-indigo-200 uppercase font-bold tracking-widest">Fast Unlock</p>
+                  <p class="text-sm font-bold mt-0.5 font-mono">1 Box = 190 Coins</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Feature Grid Hub -->
+          <div class="grid grid-cols-2 gap-4 mt-6">
+            <!-- Action card 1: Watch Ad -->
+            <div onclick="switchView('earnPage')" class="cursor-pointer glass-panel border border-slate-100 rounded-2xl p-4 text-center hover:border-indigo-100 hover:shadow-md transition-all active:scale-95 flex flex-col items-center">
+              <div class="h-12 w-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-3">
+                <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="2" y="7" width="20" height="15" rx="2" ry="2"></rect><polyline points="17 2 12 7 7 2"></polyline></svg>
+              </div>
+              <h3 class="text-sm font-bold text-slate-800">Watch Ads</h3>
+              <p class="text-[10px] text-slate-400 mt-1 max-w-[120px]">Get +19 diamonds every 5 seconds</p>
+              <span class="mt-3 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[9px] font-bold text-emerald-600">
+                ⚡ FREE
+              </span>
+            </div>
+
+            <!-- Action card 2: Mystery Box -->
+            <div onclick="switchView('boxPage')" class="cursor-pointer glass-panel border border-slate-100 rounded-2xl p-4 text-center hover:border-amber-100 hover:shadow-md transition-all active:scale-95 flex flex-col items-center">
+              <div class="h-12 w-12 rounded-2xl bg-amber-50 text-amber-500 animate-pulse-slow flex items-center justify-center mb-3">
+                <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 12v10H4V12"></path><path d="M2 7h20v5H2z"></path><path d="M12 22V7"></path><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"></path><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"></path></svg>
+              </div>
+              <h3 class="text-sm font-bold text-slate-800">Mystery Box</h3>
+              <p class="text-[10px] text-slate-400 mt-1 max-w-[120px]">Open for 190 coins immediately</p>
+              <span class="mt-3 inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[9px] font-bold text-amber-600">
+                💎 19 Gems
+              </span>
+            </div>
+          </div>
+
+          <!-- Quick statistics review board -->
+          <div class="glass-panel border border-slate-100 rounded-2xl p-5 mt-6">
+            <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Total Game Progress</h3>
+            <div class="grid grid-cols-2 gap-4">
+              <div class="border-r border-slate-100 pr-2">
+                <p class="text-slate-500 text-[11px] font-semibold">Mystery Boxes opened</p>
+                <div class="flex items-baseline gap-1 mt-1">
+                  <span id="statBoxes" class="text-lg font-black text-slate-800 font-mono">0</span>
+                  <span class="text-[10px] text-slate-400">times</span>
+                </div>
+              </div>
+              <div class="pl-2">
+                <p class="text-slate-500 text-[11px] font-semibold">Sponsored ads watched</p>
+                <div class="flex items-baseline gap-1 mt-1">
+                  <span id="statAds" class="text-lg font-black text-slate-800 font-mono">0</span>
+                  <span class="text-[10px] text-slate-400">ads</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Secure Compliance Info Card -->
+          <div class="rounded-2xl bg-indigo-50/40 border border-indigo-100/50 p-4 mt-6 flex gap-3 text-xs">
+            <svg class="h-5 w-5 text-indigo-500 flex-shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+            <div class="space-y-1">
+              <h4 class="font-bold text-slate-700">Official Conversion Rate Guarantee</h4>
+              <p class="text-slate-500">All submissions are monitored. Rate scale conversion maps 100% to premium scratchcard vouchers. No commission extracted.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- EARN PAGE VIEW -->
+        <div id="earnPage" class="view-panel">
+          <div class="glass-panel border border-slate-100 rounded-2xl p-6 text-center flex flex-col items-center">
+            <div class="h-16 w-16 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 mb-4 shadow-md shadow-indigo-100">
+              <svg class="h-8 w-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="2" y="7" width="20" height="15" rx="2" ry="2"></rect><polyline points="17 2 12 7 7 2"></polyline></svg>
+            </div>
+            
+            <h2 class="font-display text-lg font-bold text-slate-800">Watch Premium Ad</h2>
+            <p class="text-xs text-slate-400 mt-1 max-w-sm mx-auto">Watch a sponsored gameplay demonstration to support our catalog. In return, earn guaranteed diamonds to open mystery boxes!</p>
+
+            <!-- Loading overlay & progress animation during watch -->
+            <div id="adLoadingFrame" class="hidden w-full max-w-xs mt-6 p-4 rounded-xl bg-slate-50 border border-slate-100 space-y-3">
+              <div class="flex items-center justify-between text-xs font-semibold text-slate-500">
+                <span class="flex items-center gap-1.5 text-indigo-600 animate-pulse">
+                  <span class="h-2 w-2 rounded-full bg-indigo-600 animate-ping"></span> Stream Loading Sponsor Ad...
+                </span>
+                <span id="adCountdown" class="font-mono text-slate-700">5s</span>
+              </div>
+              <div class="h-3 w-full bg-slate-200 rounded-full overflow-hidden">
+                <div id="adProgressFill" class="h-full bg-indigo-600 w-0 transition-all duration-1000 ease-linear"></div>
+              </div>
+            </div>
+
+            <!-- Ad Reward Display Presentation info card -->
+            <div class="my-6 w-full max-w-xs rounded-xl bg-emerald-50 border border-emerald-100 p-4 flex items-center justify-between">
+              <div class="text-left">
+                <span class="text-[9px] text-slate-400 font-bold uppercase tracking-widest block">Watch Reward payload</span>
+                <span class="text-xs font-bold text-slate-700 block mt-0.5">Sponsor token bonus</span>
+              </div>
+              <div class="flex items-center gap-1 font-bold text-emerald-600 text-xs bg-white px-2.5 py-1 rounded-lg border border-emerald-100 shadow-sm">
+                <span>+19 💎</span>
+              </div>
+            </div>
+
+            <!-- WATCH AD ACTION TRIGGER -->
+            <button id="watchAdBtn" onclick="runWatchAdFlow()" class="btn-tap-feedback w-full max-w-xs bg-slate-900 text-white rounded-xl py-3 font-bold text-xs hover:bg-slate-800 transition-all shadow-md flex items-center justify-center gap-2">
+              <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+              <span>Watch Ad (+19 Diamonds)</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- MYSTERY BOX PAGE VIEW -->
+        <div id="boxPage" class="view-panel">
+          <div class="glass-panel border border-slate-100 rounded-2xl p-6 flex flex-col items-center">
+            
+            <div class="text-center w-full">
+              <h2 class="font-display text-lg font-bold text-slate-800">Premium Mystery Box</h2>
+              <p class="text-xs text-slate-400 mt-1">Deploy 19 diamonds to open the chests for 190 coins</p>
+            </div>
+
+            <!-- SCENE BACKGROUND FOR MYSTERY CHEST -->
+            <div class="relative my-8 h-48 w-full rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center overflow-hidden">
+              <!-- Dots grids pattern overlay -->
+              <div class="absolute inset-0 bg-[radial-gradient(#e2e8f0_1px,transparent_1px)] [background-size:16px_16px] opacity-60"></div>
+              
+              <!-- Floating Particle Generator Space -->
+              <div id="particleSpace" class="absolute inset-0"></div>
+
+              <!-- Glow aura element -->
+              <div id="boxGlow" class="absolute h-32 w-32 rounded-full bg-amber-400/20 blur-3xl pointer-events-none transition-all duration-300"></div>
+
+              <!-- SVG Animated Chest Box -->
+              <div id="boxContainer" class="relative z-10 transition-transform duration-300 cursor-pointer active:scale-95" onclick="triggerMysteryBoxFlow()">
+                <svg id="boxSvg" class="h-28 w-28 drop-shadow-xl" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <!-- Lid Shadow -->
+                  <path d="M15 45 C15 45, 50 53, 85 45 L85 52 L15 52 Z" fill="#B45309" opacity="0.2" />
+                  
+                  <!-- Box Base Body -->
+                  <path d="M18 43 L82 43 L78 85 L22 85 Z" fill="url(#boxBaseBg)" stroke="#D97706" stroke-width="2.5" />
+                  <!-- Lock Band -->
+                  <rect x="44" y="43" width="12" height="24" rx="2" fill="#F59E0B" stroke="#92400E" stroke-width="1.5" />
+                  <circle cx="50" cy="54" r="3" fill="#EF4444" />
+
+                  <!-- Box Lid group -->
+                  <g id="boxLid">
+                    <path d="M14 26 L50 18 L86 26 L82 43 L18 43 Z" fill="url(#boxLidBg)" stroke="#D97706" stroke-width="2.5" />
+                    <!-- Handle -->
+                    <path d="M42 20 C42 20, 50 14, 58 20" stroke="#FEF08A" stroke-width="3" stroke-linecap="round" />
+                    <circle cx="50" cy="15" r="2.5" fill="#F59E0B" />
+                    <!-- Question Mark Symbol -->
+                    <text x="46" y="37" fill="#FEF08A" font-weight="bold" font-size="14" font-family="monospace">?</text>
+                  </g>
+
+                  <defs>
+                    <linearGradient id="boxBaseBg" x1="50" y1="43" x2="50" y2="85" gradientUnits="userSpaceOnUse">
+                      <stop stop-color="#F59E0B" />
+                      <stop offset="1" stop-color="#B45309" />
+                    </linearGradient>
+                    <linearGradient id="boxLidBg" x1="50" y1="18" x2="50" y2="43" gradientUnits="userSpaceOnUse">
+                      <stop stop-color="#FBBF24" />
+                      <stop offset="1" stop-color="#D97706" />
+                    </linearGradient>
+                  </defs>
+                </svg>
+              </div>
+
+              <!-- Tiny text -->
+              <p id="boxInstructionText" class="absolute bottom-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider text-center">Tap Chest to Unlock</p>
+            </div>
+
+            <!-- Bottom Price and Button CTA Trigger -->
+            <div class="w-full space-y-4">
+              <div class="flex items-center justify-between rounded-xl bg-amber-50 border border-amber-100 p-3 text-xs">
+                <span class="text-slate-500 font-semibold">Opening price:</span>
+                <span class="flex items-center gap-1 font-bold text-sky-600">
+                  💎 19 Diamonds
+                </span>
+              </div>
+
+              <button id="openBoxBtn" onclick="triggerMysteryBoxFlow()" class="btn-tap-feedback w-full bg-gradient-to-r from-amber-500 to-amber-600 text-white rounded-xl py-3 font-bold text-xs shadow-md">
+                Open Mystery Box (💎 19 Diamonds)
+              </button>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- REDEEM PAGE VIEW -->
+        <div id="redeemPage" class="view-panel">
+          
+          <div class="glass-panel border border-slate-100 rounded-2xl p-5 mb-6">
+            <h2 class="font-display text-base font-bold text-slate-800">Claim Code Scratchcard</h2>
+            <p class="text-xs text-slate-500 mt-0.5">Deduct 900 coins in exchange for a 10 Rupees (RS) redeem voucher.</p>
+
+            <div class="mt-4 rounded-xl bg-indigo-50/40 border border-indigo-100/50 p-4 space-y-1.5 text-xs text-slate-500">
+              <p class="font-bold text-slate-700 flex items-center gap-1"><span class="text-indigo-600">●</span> Google Play / Amazon Vouchers</p>
+              <p>Every transaction will log a transaction request securely with a pending queue. Verification is fully automated.</p>
+            </div>
+
+            <!-- Redeme options choice buttons -->
+            <div class="grid grid-cols-2 gap-3 mt-4">
+              <button onclick="requestRedemption('Google Play', 10)" class="btn-tap-feedback bg-rose-50 text-rose-600 border border-rose-100 hover:bg-rose-100/50 rounded-xl p-4 flex flex-col items-center justify-center text-center">
+                <svg class="h-6 w-6 mb-1.5 text-rose-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 3l14 9-14 9V3z"></path></svg>
+                <span class="text-xs font-bold leading-tight">Google Play Code</span>
+                <span class="text-[10px] text-slate-400 mt-1">900 Coins = RS 10</span>
+              </button>
+
+              <button onclick="requestRedemption('Amazon Pay', 10)" class="btn-tap-feedback bg-amber-50 text-amber-600 border border-amber-100 hover:bg-amber-100/50 rounded-xl p-4 flex flex-col items-center justify-center text-center">
+                <svg class="h-6 w-6 mb-1.5 text-amber-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>
+                <span class="text-xs font-bold leading-tight">Amazon Voucher</span>
+                <span class="text-[10px] text-slate-400 mt-1">900 Coins = RS 10</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- REDEEM REQUESTS HISTORY -->
+          <div class="glass-panel border border-slate-100 rounded-2xl p-5">
+            <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">My Redeemed History</h3>
+            
+            <div id="redeemHistoryList" class="space-y-3">
+              <!-- Dynamically populated or empty slate state -->
+              <div class="text-center py-6 text-slate-400 text-xs">
+                <p>No redemption submissions yet.</p>
+                <p class="text-[11px] text-slate-400 mt-1">Your purchased scratchcard vouchers will generate here.</p>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- PROFILE PAGE VIEW -->
+        <div id="profilePage" class="view-panel">
+          <!-- Profile Card -->
+          <div class="glass-panel border border-slate-100 rounded-2xl p-6 flex flex-col items-center text-center">
+            
+            <!-- User Avatar block -->
+            <div class="relative">
+              <div class="h-20 w-20 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-3xl shadow-md">
+                👤
+              </div>
+              <span class="absolute bottom-0 right-1 h-5.5 w-5.5 rounded-full bg-indigo-600 border-2 border-white flex items-center justify-center text-white text-[10px] font-bold">
+                ✓
+              </span>
+            </div>
+
+            <!-- Profile Info Edit triggers -->
+            <div class="mt-4 w-full">
+              <div id="profileViewMode">
+                <h3 id="profileUsername" class="text-lg font-bold text-slate-800">Loading...</h3>
+                <p id="profileEmail" class="text-xs text-slate-400 mt-0.5">user@email.com</p>
+                
+                <button onclick="toggleProfileEdit(true)" class="btn-tap-feedback mt-4 text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg px-4 py-2 transition-all">
+                  Edit Nickname
+                </button>
+              </div>
+
+              <!-- Username editing mode -->
+              <div id="profileEditMode" class="hidden space-y-3 mt-3">
+                <input id="editUsernameInput" type="text" class="w-full text-center text-sm rounded-xl border border-slate-200 px-4 py-2.5 focus:border-indigo-500 focus:outline-none" placeholder="Enter new username" />
+                <div class="flex justify-center gap-2">
+                  <button onclick="toggleProfileEdit(false)" class="btn-tap-feedback text-xs font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 rounded-lg px-4 py-2">
+                    Cancel
+                  </button>
+                  <button onclick="saveUserProfileName()" class="btn-tap-feedback text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg px-4 py-2">
+                    Save Changes
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Join Date meta information -->
+            <div class="mt-6 pt-5 border-t border-slate-100 w-full flex items-center justify-between text-xs text-slate-500">
+              <span>Member Account Since</span>
+              <strong id="profileJoinDate" class="text-slate-800">...</strong>
+            </div>
+
+            <div class="mt-3 pt-3 border-t border-slate-100 w-full flex items-center justify-between text-xs text-slate-500">
+              <span>Account ID</span>
+              <strong id="profileUid" class="text-slate-600 font-mono truncate max-w-[150px]">...</strong>
+            </div>
+
+            <!-- Log out CTA -->
+            <button onclick="triggerLogout()" class="btn-tap-feedback w-full mt-6 bg-rose-50 text-rose-600 rounded-xl py-3 font-semibold text-xs hover:bg-rose-100/50 transition-colors">
+              Log Out Secure Session
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Persistent Sticky Bottom Tab Navigation -->
+      <nav class="fixed bottom-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-md border-t border-slate-100 py-3.5 px-6 flex items-center justify-between shadow-[0_-5px_15px_-4px_rgba(148,163,184,0.06)] rounded-t-3xl max-w-lg mx-auto">
+        <!-- Home tab button -->
+        <button onclick="switchView('dashboardPage')" id="tab-dashboardPage" class="flex flex-col items-center gap-1 text-indigo-600 transition-all">
+          <svg class="h-5.5 w-5.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="7" height="9"></rect><rect x="14" y="3" width="7" height="5"></rect><rect x="14" y="12" width="7" height="9"></rect><rect x="3" y="16" width="7" height="5"></rect></svg>
+          <span class="text-[9px] font-bold uppercase tracking-wider">Home</span>
+        </button>
+
+        <!-- Earn tab button -->
+        <button onclick="switchView('earnPage')" id="tab-earnPage" class="flex flex-col items-center gap-1 text-slate-400 transition-all">
+          <svg class="h-5.5 w-5.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="2" y="7" width="20" height="15" rx="2" ry="2"></rect><polyline points="17 2 12 7 7 2"></polyline></svg>
+          <span class="text-[9px] font-bold uppercase tracking-wider">Earn</span>
+        </button>
+
+        <!-- Box tab button -->
+        <button onclick="switchView('boxPage')" id="tab-boxPage" class="flex flex-col items-center gap-1 text-slate-400 transition-all">
+          <svg class="h-5.5 w-5.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 12v10H4V12"></path><path d="M2 7h20v5H2z"></path><path d="M12 22V7"></path><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"></path><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"></path></svg>
+          <span class="text-[9px] font-bold uppercase tracking-wider">Box</span>
+        </button>
+
+        <!-- Redeem tab button -->
+        <button onclick="switchView('redeemPage')" id="tab-redeemPage" class="flex flex-col items-center gap-1 text-slate-400 transition-all">
+          <svg class="h-5.5 w-5.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
+          <span class="text-[9px] font-bold uppercase tracking-wider">Redeem</span>
+        </button>
+
+        <!-- Profile tab button -->
+        <button onclick="switchView('profilePage')" id="tab-profilePage" class="flex flex-col items-center gap-1 text-slate-400 transition-all">
+          <svg class="h-5.5 w-5.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+          <span class="text-[9px] font-bold uppercase tracking-wider">Profile</span>
+        </button>
+      </nav>
+    </div>
+
+    <!-- AUTHENTICATION SHELL (Visible when user session is missing) -->
+    <div id="authShell" class="flex flex-col justify-center flex-1 max-w-sm w-full mx-auto p-6 md:p-8 space-y-6">
+      
+      <!-- Brand icon card top header -->
+      <div class="text-center space-y-1">
+        <div class="mx-auto h-12 w-12 rounded-2xl bg-indigo-600 flex items-center justify-center font-black text-white text-xl tracking-wide shadow-md shadow-indigo-200">
+          RA
+        </div>
+        <h2 class="font-display text-xl font-black text-slate-800 tracking-tight mt-3">Radeem App</h2>
+        <p class="text-xs text-slate-400">Your gamified mystery reward portal</p>
+      </div>
+
+      <!-- LOGIN PAGE VIEW -->
+      <div id="loginPage" class="view-panel active-view bg-white border border-slate-100 rounded-2xl p-5 shadow-sm space-y-4">
+        <div>
+          <h3 class="font-display font-bold text-slate-800 text-sm">Welcome Back</h3>
+          <p class="text-[11px] text-slate-400">Log in to sync your coin balance across screens</p>
+        </div>
+
+        <form id="loginForm" class="space-y-3.5">
+          <div>
+            <label class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Email Address</label>
+            <input id="loginEmail" type="email" required class="w-full text-xs rounded-xl border border-slate-250 px-4 py-3 mt-1.5 focus:border-indigo-500 focus:outline-none" placeholder="name@email.com" />
+          </div>
+          <div>
+            <div class="flex items-center justify-between">
+              <label class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Password</label>
+              <button type="button" onclick="swapAuthView('forgotPage')" class="text-[10px] text-indigo-500 font-bold hover:underline">Forgot password?</button>
+            </div>
+            <input id="loginPassword" type="password" required class="w-full text-xs rounded-xl border border-slate-250 px-4 py-3 mt-1.5 focus:border-indigo-500 focus:outline-none" placeholder="******" />
+          </div>
+
+          <button id="loginSubmitBtn" type="submit" class="btn-tap-feedback w-full rounded-xl bg-slate-900 py-3 text-xs font-semibold text-white hover:bg-slate-800 shadow transition-all">
+            Secure Log In
+          </button>
+        </form>
+
+        <!-- Divider line -->
+        <div class="relative flex py-2 items-center">
+          <div class="flex-grow border-t border-slate-100"></div>
+          <span class="flex-shrink mx-3 text-[10px] text-slate-300 font-semibold uppercase tracking-wider">or sign in with</span>
+          <div class="flex-grow border-t border-slate-100"></div>
+        </div>
+
+        <!-- Google Auth quick option -->
+        <div class="space-y-2">
+          <button onclick="triggerGoogleSignIn()" class="btn-tap-feedback w-full rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-705 py-2.5 text-xs font-semibold flex items-center justify-center gap-2 transition-all">
+            <svg class="h-4 w-4" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg>
+            Google Cloud Session
+          </button>
+          
+          <button id="quickDemoBtn" onclick="triggerQuickDemoLogin()" class="btn-tap-feedback w-full rounded-xl bg-indigo-50 border border-indigo-100/70 text-indigo-700 hover:bg-indigo-100 py-2.5 text-xs font-bold flex items-center justify-center gap-1.5 transition-all">
+            <span>⚡</span> Quick Demo Login (No Whitelist)
+          </button>
+        </div>
+
+        <p class="text-center text-xs text-slate-400 pt-1">
+          Don't have an account? <button onclick="swapAuthView('registerPage')" class="text-indigo-600 font-bold hover:underline">Register free</button>
+        </p>
+      </div>
+
+      <!-- REGISTER PAGE VIEW -->
+      <div id="registerPage" class="view-panel bg-white border border-slate-100 rounded-2xl p-5 shadow-sm space-y-4">
+        <div>
+          <h3 class="font-display font-bold text-slate-800 text-sm">Register New Profile</h3>
+          <p class="text-[11px] text-slate-400">Join instantly to start syncing your diamond claims</p>
+        </div>
+
+        <form id="registerForm" class="space-y-3.5">
+          <div>
+            <label class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Player Name</label>
+            <input id="registerUsername" type="text" required class="w-full text-xs rounded-xl border border-slate-250 px-4 py-3 mt-1.5 focus:border-indigo-500 focus:outline-none" placeholder="e.g. MasterGamer" />
+          </div>
+          <div>
+            <label class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Email Address</label>
+            <input id="registerEmail" type="email" required class="w-full text-xs rounded-xl border border-slate-250 px-4 py-3 mt-1.5 focus:border-indigo-500 focus:outline-none" placeholder="you@example.com" />
+          </div>
+          <div>
+            <label class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Choose Code Password</label>
+            <input id="registerPassword" type="password" required class="w-full text-xs rounded-xl border border-slate-250 px-4 py-3 mt-1.5 focus:border-indigo-500 focus:outline-none" placeholder="6+ characters" />
+          </div>
+
+          <button id="registerSubmitBtn" type="submit" class="btn-tap-feedback w-full rounded-xl bg-indigo-600 py-3 text-xs font-semibold text-white hover:bg-indigo-700 shadow transition-all">
+            Initialize Free Account
+          </button>
+        </form>
+
+        <p class="text-center text-xs text-slate-400 pt-1">
+          Already has a profile? <button onclick="swapAuthView('loginPage')" class="text-indigo-600 font-bold hover:underline">Login here</button>
+        </p>
+      </div>
+
+      <!-- FORGOT PASSWORD PAGE VIEW -->
+      <div id="forgotPage" class="view-panel bg-white border border-slate-100 rounded-2xl p-5 shadow-sm space-y-4">
+        <div>
+          <h3 class="font-display font-bold text-slate-800 text-sm">Retrieve Code Account</h3>
+          <p class="text-[11px] text-slate-400">We will dispatch an automated security password-reset email link</p>
+        </div>
+
+        <form id="forgotForm" class="space-y-3.5">
+          <div>
+            <label class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Registered Email</label>
+            <input id="forgotEmail" type="email" required class="w-full text-xs rounded-xl border border-slate-250 px-4 py-3 mt-1.5 focus:border-indigo-500 focus:outline-none" placeholder="name@email.com" />
+          </div>
+
+          <button id="forgotSubmitBtn" type="submit" class="btn-tap-feedback w-full rounded-xl bg-slate-900 py-3 text-xs font-semibold text-white hover:bg-slate-800 shadow transition-all">
+            Send Reset Link
+          </button>
+        </form>
+
+        <p class="text-center text-xs text-slate-400 pt-1">
+          Back to portal <button onclick="swapAuthView('loginPage')" class="text-indigo-600 font-bold hover:underline">Log in</button>
+        </p>
+      </div>
+
+    </div>
+
+    <!-- MAIN APP JAVASCRIPT ENTRY CORES (Vite modules format) -->
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

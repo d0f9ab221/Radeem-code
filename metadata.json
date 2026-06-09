@@ -1,0 +1,6 @@
+{
+  "name": "Redeem Code App",
+  "description": "Earn diamonds by watching ads, unlock mystery boxes for coin rewards, and redeem coins for code rewards in this elegant, gamified simulator.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
