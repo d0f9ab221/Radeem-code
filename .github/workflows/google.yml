@@ -2,21 +2,23 @@ name: Automatic Google AI Studio Sync
 
 on:
   schedule:
-    - cron: '*/5 * * * *' # Yeh har 5 minute baad khud hi check karne ki koshish karega
-  workflow_dispatch: # Isse aap jab chahein single click se turant deploy kar sakte hain
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+permissions: # Yeh line script ke andar se bhi write access enable karegi
+  contents: write
 
 jobs:
   auto_deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4 # Up-to-date node check
 
       - name: Fetch Latest Files from AI Studio
         env:
-          GEMINI_API_KEY: ${{ secrets.API_KEY }} # Jo secret name aapne rakha hai
+          GEMINI_API_KEY: ${{ secrets.API_KEY }}
         run: |
-          # AI Studio se structural response fetch karne ki command
           curl -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}" \
           -H "Content-Type: application/json" \
           -d '{"contents": [{"parts":[{"text": "Export my latest project code as plain structured files"}]}]}' > project_data.json
